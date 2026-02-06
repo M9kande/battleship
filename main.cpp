@@ -32,23 +32,25 @@ void renderBoard(std::array<std::array<int, 8>, 8> board);
 void system_clear() {
     #ifdef _WIN32
         system("cls");
-        system("chcp 65001");
-        system("color B0");
     #else
         system("clear");
     #endif
 }
 
 struct Ship {
-    int id{};
-    int size{};
+    int id = 0;
+    int size = 0;
     std::vector<std::pair<int, int>> coordinates; // Store coordinates as pairs of (x, y)
     bool isSunk = false;
 
+    Ship(int id, int size){
+        this->id = id;
+        this->size = size;
+    }
     // General function to handle placing ships
     void placeShip(std::array<std::array<int, 8>, 8> &board, int numCoords) {
     bool isValid = false;
-
+    static std::string Position[] = {"starting", "ending"};
     while (!isValid) {
         coordinates.clear();
 
@@ -56,16 +58,23 @@ struct Ship {
         for (int i = 0; i < 2; i++) {
             char x_in;
             int y_in;
-            std::string Position[] = {"starting", "ending"};
+            
             std::cout << "Input " << Position[i] << " coordinate for ship #" << id << " using a letter and a number: ";
-            std::cin >> x_in >> y_in;
+            if (!(std::cin >> x_in >> y_in)) { // Combined check and input
+                std::cin.clear(); 
+                std::cin.ignore(1000, '\n');
+                std::cout << "Error: Enter a Letter and a Number.\n";
+                continue; 
+            }
 
             int x = toupper(x_in) - 'A';  // Convert letter to integer index
-            int y = toupper(y_in) - 1;    // Adjust for 0-based indexing
+            int y = y_in - 1;    // Adjust for 0-based indexing
 
             if (x < 0 || x >= 8 || y < 0 || y >= 8) {
                 std::cout << "Coordinates out of bounds. Please try again.\n";
                 i--;  // Redo the input for this coordinate
+                x = -1;
+                y = -1;
                 continue;
             }
 
@@ -269,93 +278,143 @@ auto playerTurn(std::array<std::array<int, 8>, 8> &aiBoard){
     int y_in;
     bool isValid = false;
     while(!isValid){
-    std::cout << "#####PLAYER MOVE#####\n";
-    std::cout << "Input coordinates of your hit: ";
-    std::cin >> x_in >> y_in;
-
-    int x = toupper(x_in) - 'A';  // Convert letter to integer index
-    int y = toupper(y_in) - 1;    // Adjust for 0-based indexing
-
-    // Ensure coordinates are within bounds
-    if (x < 0 || x >= 8 || y < 0 || y >= 8) {
-    std::cout << "Coordinates out of bounds. Please try again.\n";
-    continue;
+        std::cout << "#####PLAYER MOVE#####\n";
+        std::cout << "Input coordinates of your hit: ";
+        if (!(std::cin >> x_in >> y_in)) { // Combined check and input
+            std::cin.clear(); 
+            std::cin.ignore(1000, '\n');
+            std::cout << "Error: Enter a Letter and a Number.\n";
+        continue; 
     }
-    if(aiBoard[y][x] == hit || aiBoard[y][x] == miss) {
-        std::cout << "You already used this spot, try again\n";
+        int x = toupper(x_in) - 'A';  // Convert letter to integer index
+        int y = toupper(y_in) - 1;    // Adjust for 0-based indexing
+
+        // Ensure coordinates are within bounds
+        if (x < 0 || x >= 8 || y < 0 || y >= 8) {
+            std::cout << "Coordinates out of bounds. Please try again.\n";
         continue;
-    } else if(aiBoard[y][x] != empty){
-        isValid = true;
-        switch(aiBoard[y][x]){
-            case 2: aiShipHit = 2; break;
-            case 3: aiShipHit = 3; break;
-            case 4: aiShipHit = 4; break;
-            case 5: aiShipHit = 5; break;
-            default:
-                std::cout << "Ai turn error\n";
         }
-        aiBoard[y][x] = hit; // hit
-        system_clear();        renderGame(board, aiBoard);
-        std::cout << "#####PLAYER MOVE#####\n";
-        std::cout << x_in << y_in << '\n';
-        std::cout << "HIT\n";
+        if(aiBoard[y][x] == hit || aiBoard[y][x] == miss) {
+            std::cout << "You already used this spot, try again\n";
+            continue;
+        } else if(aiBoard[y][x] != empty){
+            isValid = true;
+            switch(aiBoard[y][x]){
+                case 2: aiShipHit = 2; break;
+                case 3: aiShipHit = 3; break;
+                case 4: aiShipHit = 4; break;
+                case 5: aiShipHit = 5; break;
+                default:
+                    std::cout << "Ai turn error\n";
+            }
+            aiBoard[y][x] = hit; // hit
+            system_clear();        renderGame(board, aiBoard);
+            std::cout << "#####PLAYER MOVE#####\n";
+            std::cout << x_in << y_in << '\n';
+            std::cout << "HIT\n";
 
-    } else{
-        isValid = true;
-        
-        switch(aiBoard[y][x]){
-            case 2: aiShipHit = 2; break;
-            case 3: aiShipHit = 3; break;
-            case 4: aiShipHit = 4; break;
-            case 5: aiShipHit = 5; break;
-            default:
-                std::cout << "Ai turn error\n";
+        } else{
+            isValid = true;
+            
+            switch(aiBoard[y][x]){
+                case 2: aiShipHit = 2; break;
+                case 3: aiShipHit = 3; break;
+                case 4: aiShipHit = 4; break;
+                case 5: aiShipHit = 5; break;
+                default:
+                    std::cout << "Ai turn error\n";
+            }
+            aiBoard[y][x] = miss; // miss
+            system_clear();        
+            renderGame(board, aiBoard);
+            std::cout << "#####PLAYER MOVE#####\n";
+            std::cout << x_in << y_in << '\n';
+            std::cout << "MISS\n";
         }
-        aiBoard[y][x] = miss; // miss
-        system_clear();        
-        renderGame(board, aiBoard);
-        std::cout << "#####PLAYER MOVE#####\n";
-        std::cout << x_in << y_in << '\n';
-        std::cout << "MISS\n";
-    }
 
     }
     return aiShipHit;
 }
 
-std::tuple<int, bool, bool, int, int, char> aiTurn(std::array<std::array<int, 8>, 8> &board, bool lastHit, bool lastSunk, int last_x, int last_y, char direction){
+
+//// Zamienić attempts na vector z opcjami które przy użyciu się usuną
+//
+//
+//
+
+
+std::tuple<int, bool, bool, int, int, int, int, char> aiTurn(std::array<std::array<int, 8>, 8> &board, bool lastHit, bool lastSunk, int last_x, int last_y, int secondLast_x, int secondLast_y, char direction){
     system_clear();
     renderGame(board, aiBoard);
     int shipHit;
     bool isValid = false;
-    int x_out;
-    int y_out;
-    int x;
-    int y;
+    int x = 0;
+    int y = 0;
+    std::vector<int> vec2= {1,-1};
     int attempts = 0;
     while(!isValid){
         std::cout << "#####AI MOVE#####\n";
-        int x = last_x;
-        int y = last_y;
-
-        if (!lastHit || (last_x == hit && last_y == hit) || lastSunk) {
+        if(last_x == -1 && last_y == -1){
+            x = 6;
+            y = 2;
+        }
+        else if (!lastHit || (last_x == -1 && last_y == -1) || lastSunk) {
             x = rand() % 8;
             y = rand() % 8;
-        } else if(direction != '0') {
+        } // ... inside your while(!isValid) loop
+        else if(direction != '0') {
             if(direction == 'x'){
-                switch(rand() % 2){
-                    case 0: x += 1; break;
-                    case 1: x -= 1; break;
+                if(!vec2.empty()){
+                    x = last_x;
+                    y = last_y;
+                    int random = rand() % vec2.size();
+                    x += vec2[random];
+                    
+                    // Using the swap-and-pop logic we discussed for safety
+                    std::swap(vec2[random], vec2.back());
+                    vec2.pop_back();
+                }
+                else {
+                    // THE WALKER: Find the other side of the ship
+                    int temp_x = last_x;
+                    int step_x = (secondLast_x - last_x); // The direction back toward the start
+
+                    // Keep walking as long as we are on a 'hit'
+                    while (temp_x >= 0 && temp_x < 8 && board[last_y][temp_x] == hit) {
+                        temp_x += step_x;
+                    }
+                    x = temp_x;
+                    y = last_y;
                 }
             }
             if(direction == 'y'){
-                switch(rand() % 2){
-                    case 0: y += 1; break;
-                    case 1: y -= 1; break;
+                if(!vec2.empty()){
+                    x = last_x;
+                    y = last_y;
+                    int random = rand() % vec2.size();
+                    y += vec2[random];
+
+                    std::swap(vec2[random], vec2.back());
+                    vec2.pop_back();
+                }
+                else {
+                    // THE WALKER: Find the other side of the ship
+                    int temp_y = last_y;
+                    int step_y = (secondLast_y - last_y); // The direction back toward the start
+
+                    // Keep walking as long as we are on a 'hit'
+                    while (temp_y >= 0 && temp_y < 8 && board[temp_y][last_x] == hit) {
+                        temp_y += step_y;
+                    }
+                    y = temp_y;
+                    x = last_x;
                 }
             }
+            attempts++;
         }
         else{
+            x = last_x;
+            y = last_y;
             int dir = rand() % 4;
             switch(dir){
                 case 0: y += 1; break;
@@ -364,19 +423,10 @@ std::tuple<int, bool, bool, int, int, char> aiTurn(std::array<std::array<int, 8>
                 case 3: x -= 1; break;
             }
         }
-        //Ten if w innym miejscu
-        //Gdy mamy kierunek i próbę strzału >= 2 to idziemy pętlą w kierunku aż znajdziemy puste pole board[y][x] = empty
-         if(attempts >= 2){
-            lastHit = false;
-            attempts = 0;
-        }
 
-
-
-        x_out = x + 'A';
-        y_out = y + 1;
         // Ensure coordinates are within bounds
         if (x < 0 || x >= 8 || y < 0 || y >= 8) {
+            attempts++;
             continue;
         }
         if(board[y][x] == hit || board[y][x] == miss){
@@ -400,6 +450,9 @@ std::tuple<int, bool, bool, int, int, char> aiTurn(std::array<std::array<int, 8>
             }
 
             board[y][x] = hit; // hit
+            attempts = 0;
+            secondLast_x = last_x;
+            secondLast_y = last_y;
             last_x = x;
             last_y = y;
             lastHit = true;
@@ -410,24 +463,25 @@ std::tuple<int, bool, bool, int, int, char> aiTurn(std::array<std::array<int, 8>
 
             std::cout << "#####AI MOVE#####\n";
            
-            std::cout << (char)x_out << y_out << '\n'; // print coords chose by computer
+            std::cout << (char)(x + 'A') << y + 1 << '\n'; // print coords chose by computer
             std::cout << "HIT\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(1500));
         }
         else{
             isValid = true;
+            attempts = 0;
             board[y][x] = miss; // miss
             system_clear();
             renderGame(board, aiBoard);
 
             std::cout << "#####AI MOVE#####\n";
             
-            std::cout << (char)x_out << y_out << '\n'; // print coords chose by computer
+            std::cout << (char)(x + 'A') << y + 1 << '\n'; // print coords chose by computer
             std::cout << "MISS\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(1500));
         }
     }
-    return std::make_tuple(shipHit, lastHit, lastSunk, last_x, last_y, direction);
+    return std::make_tuple(shipHit, lastHit, lastSunk, last_x, last_y, secondLast_x, secondLast_y, direction);
 }
 
 
@@ -436,21 +490,17 @@ int main() {
     bool aiSunk = false;
     int playerNumMoves = 0;
     int aiNumMoves = 0;
-    int Last_x = hit;
-    int Last_y = hit;
+    int Last_x = -1;
+    int Last_y = -1;
     srand(time(nullptr));
 
     int turn = 1; // First turn is the player's
 
     // Ship definitions for player and AI
-    Ship ship_2, ship_3, ship_4, ship_5;
-    ship_2.id = 2; ship_3.id = 3; ship_4.id = 4; ship_5.id = 5;
-    ship_2.size = 2; ship_3.size = 3; ship_4.size = 4; ship_5.size = 5;
+    Ship ship_2(2,2), ship_3(3,3), ship_4(4,4), ship_5(5,5);
     int playerShipsSize = ship_2.size + ship_3.size + ship_4.size + ship_5.size;
 
-    Ship aiShip_2, aiShip_3, aiShip_4, aiShip_5;
-    aiShip_2.id = 2; aiShip_3.id = 3; aiShip_4.id = 4; aiShip_5.id = 5;
-    aiShip_2.size = 2; aiShip_3.size = 3; aiShip_4.size = 4; aiShip_5.size = 5;
+    Ship aiShip_2(2,2), aiShip_3(3,3), aiShip_4(4,4), aiShip_5(5,5);
     int aiShipsSize = aiShip_2.size + aiShip_3.size + aiShip_4.size + aiShip_5.size;
 
     // Place AI ships
@@ -476,7 +526,7 @@ int main() {
     renderGame(board, aiBoard);
 
     bool lastSunkShip = false;  
-    int shipHit, last_x, last_y = hit;
+    int shipHit, last_x = -1, last_y = -1, secondLast_x = -1, secondLast_y = -1;
     bool lastHit = false;
     char direction = '0';
     // Game loop
@@ -509,28 +559,19 @@ int main() {
             }
 
             // Check if player has lost
-            playerSunk = true;
-            for (auto& ship : {ship_2, ship_3, ship_4, ship_5}) {
-                if (!ship.isSunk) {
-                    playerSunk = false;
-                    break;
-                }
-            }
-
-            if (playerSunk) {
-                std::cout << "AI has sunk all your ships. AI wins!\n";
-                break;
-            }
+            
             std::this_thread::sleep_for(std::chrono::milliseconds(1500));  // Wait a bit before next turn
 
         }
         else if (turn == 0) {  // AI MOVE ######################
-            std::tuple<int, bool, bool, int, int, char> ai_result = aiTurn(board, lastHit, lastSunkShip, last_x, last_y, direction);
+            std::tuple<int, bool, bool, int, int, int, int, char> ai_result = aiTurn(board, lastHit, lastSunkShip, last_x, last_y, secondLast_x, secondLast_y, direction);
             shipHit = std::get<0>(ai_result);
             lastHit = std::get<1>(ai_result);
             last_x = std::get<3>(ai_result);
             last_y = std::get<4>(ai_result);
-            direction = std::get<5>(ai_result);
+            secondLast_x = std::get<5>(ai_result);
+            secondLast_y = std::get<6>(ai_result);
+            direction = std::get<7>(ai_result);
             aiNumMoves++;
             turn = 1;
 
@@ -557,23 +598,22 @@ int main() {
             }
 
             // Check if all AI ships are sunk
-            aiSunk = true;
-            for (auto& aiShip : {aiShip_2, aiShip_3, aiShip_4, aiShip_5}) {
-                if (!aiShip.isSunk) {
-                    aiSunk = false;
-                    break;
-                }
-            }
-
-            if (aiSunk) {
-                std::cout << "Player has sunk all enemy ships. Player wins!\n";
-                std::cout << "Number of moves: " << playerNumMoves;
-                break;
-            }
             std::this_thread::sleep_for(std::chrono::milliseconds(1500));  // Wait a bit before next turn
         }
+        if (playerShipsSize <= 0) {
+                std::cout << "AI has sunk all your ships. AI wins!\n";
+                std::cout << "Number of moves: " << aiNumMoves << "\n";
+                break;
+            }
+        if (aiShipsSize <= 0) {
+                std::cout << "Player has sunk all enemy ships. Player wins!\n";
+                std::cout << "Number of moves: " << playerNumMoves << "\n";
+                break;
+            }
+        if(lastSunkShip){
+            direction = '0';
+        }
     }
-    system("color 00");
     return 0;
 }
 
