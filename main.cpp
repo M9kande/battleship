@@ -20,7 +20,7 @@ static int empty = -3;
 static int miss = -2;
 static int hit = -1;
 
-static int boardSize = 10;
+static int boardSize = 26;
 static const int timeout = 1500;
 
 static std::random_device rd;
@@ -96,7 +96,7 @@ struct AiTurn{
 
 AiTurn ai;
 
-std::array<int, 4> aiSunkShipsArray = {0,0,0,0};
+std::vector<int> aiSunkShipsArray(boardSize/2-1, 0);
 
 struct Ship {
     int id = 0;
@@ -355,7 +355,7 @@ void renderGame(const Board& board, const Board& aiBoard) {
             std::cout << "  |";
         }else{
             std::cout << " |";
-            --spacer;
+            spacer = boardSize-1;
         }
         for (int j = 0; j < boardSize; j++) {
             if (board[i][j] == empty) {
@@ -365,7 +365,12 @@ void renderGame(const Board& board, const Board& aiBoard) {
             } else if (board[i][j] == hit) {
                 std::cout << " X";  // Hit
             } else{
-                std::cout << " " << board[i][j];
+                if(board[i][j] >= 10){
+                    std::cout << board[i][j];
+                } else{
+                    std::cout << " " << board[i][j];
+                }
+                
             }
         }
 
@@ -396,7 +401,7 @@ void renderGame(const Board& board, const Board& aiBoard) {
 
         std::cout << std::string(spacer , ' ');
 
-        if(i <= 3){
+        if(i <= boardSize/2 -1){
             if(aiSunkShipsArray[i] != 0){
                 for (int k = aiSunkShipsArray[i]; k > 0; k--){
                     std::cout << aiSunkShipsArray[i];
@@ -604,7 +609,7 @@ int main(int argc, char* argv[]) {
 
 
     bool isValid = false;
-    std::cout << "Board size(max=26, default=10): ";
+    std::cout << "Board size(min=5, max=26): ";
     while (!isValid) {
         if (!(std::cin >> boardSize)) { 
             if (std::cin.eof()) {
@@ -620,8 +625,8 @@ int main(int argc, char* argv[]) {
         } 
         else {
             // Check if the number actually fits within your rules (e.g., between 2 and 20)
-            if (boardSize > 26 || boardSize < 2) {
-                std::cout << "Error: Enter a number between 2 and 26.\n";
+            if (boardSize > 26 || boardSize < 5) {
+                std::cout << "Error: Enter a number between 5 and 26.\n";
                 // Leave isValid as false so the loop runs again
             } else {
                 isValid = true; // Input is completely safe!
@@ -650,9 +655,13 @@ int main(int argc, char* argv[]) {
     int turn = 1; // First turn is the player's
 
     // Ship definitions for player and AI
-    std::array<Ship, 4> playerShips = { Ship(2,2), Ship(3,3), Ship(4,4), Ship(5,5) };
-
-    std::array<Ship, 4> aiShips = { Ship(2,2), Ship(3,3), Ship(4,4), Ship(5,5) };
+    std::vector<Ship> playerShips;
+    std::vector<Ship> aiShips;
+    for(int size = 2; size <= (boardSize/2 + 1); size++){
+        Ship newShip  = Ship(size,size);
+        playerShips.emplace_back(newShip);
+        aiShips.emplace_back(newShip);
+    }
 
     // Place AI ships
     for(auto &s : aiShips){
@@ -761,12 +770,12 @@ int main(int argc, char* argv[]) {
             
             std::this_thread::sleep_for(std::chrono::milliseconds(timeout));  // Wait a bit before next turn
         }
-        if (playerSunkCount == 4) {
+        if (playerSunkCount == boardSize/2) {
                 std::cout << "AI has sunk all your ships. AI wins!\n";
                 std::cout << "Number of moves: " << aiNumMoves << "\n";
                 break;
             }
-        if (aiSunkCount == 4) {
+        if (aiSunkCount == boardSize/2) {
                 std::cout << "Player has sunk all enemy ships. Player wins!\n";
                 std::cout << "Number of moves: " << playerNumMoves << "\n";
                 break;
