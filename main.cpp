@@ -1,6 +1,6 @@
 #include <iostream>
-#include <array>
 #include <vector>
+#include <array>
 #include <string>
 #include <algorithm>
 #include <cstdlib>
@@ -15,24 +15,19 @@ static int empty = -3;
 static int miss = -2;
 static int hit = -1;
 
+static int boardSize = 10;
+static const int timeout = 1500;
+
 static std::random_device rd;
 static std::mt19937 g(rd());
 
 // Initialize globally with -3 immediately
-std::array<std::array<int, 8>, 8> board = []{
-    std::array<std::array<int, 8>, 8> b;
-    for(auto &row : b) row.fill(empty);
-    return b;
-}();
+std::vector<std::vector<int>> board(boardSize, std::vector<int>(boardSize, empty));
 
-std::array<std::array<int, 8>, 8> aiBoard = []{
-    std::array<std::array<int, 8>, 8> b;
-    for(auto &row : b) row.fill(empty);
-    return b;
-}();
+std::vector<std::vector<int>> aiBoard(boardSize, std::vector<int>(boardSize, empty));
 
-void renderGame(std::array<std::array<int, 8>, 8> board, std::array<std::array<int, 8>, 8> aiBoard);
-void renderBoard(std::array<std::array<int, 8>, 8> board);
+void renderGame(const std::vector<std::vector<int>>& board, const std::vector<std::vector<int>>& aiBoard);
+void renderBoard(const std::vector<std::vector<int>>& board);
 
 void system_clear() {
     #ifdef _WIN32
@@ -76,8 +71,8 @@ struct AiTurn{
 
     void initializeHuntMoves() {
     huntMoves.clear();
-    for (int y = 0; y < 8; y++) {
-        for (int x = 0; x < 8; x++) {
+    for (int y = 0; y < boardSize; y++) {
+        for (int x = 0; x < boardSize; x++) {
             // Parentheses are vital here!
             if ((x + y) % 2 == 0) {
                 huntMoves.push_back({x, y});
@@ -107,7 +102,7 @@ struct Ship {
     }
     
     // General function to handle placing ships
-    void placeShip(std::array<std::array<int, 8>, 8> &board, int numCoords) {
+    void placeShip(std::vector<std::vector<int>> &board, int numCoords) {
         bool isValid = false;
         static std::string Position[] = {"starting", "ending"};
         while (!isValid) {
@@ -135,7 +130,7 @@ struct Ship {
                 x_in = toupper(x_in) - 'A';  // Convert letter to integer index
                 y_in = y_in - 1;    // Adjust for 0-based indexing
 
-                if (x_in < 0 || x_in >= 8 || y_in < 0 || y_in >= 8) {
+                if (x_in < 0 || x_in >= boardSize || y_in < 0 || y_in >= boardSize) {
                     std::cout << "Coordinates out of bounds. Please try again.\n";
                     x_in = -1;
                     y_in = -1;
@@ -162,7 +157,7 @@ struct Ship {
             }
 
             if(isHorizontal){
-                if((endX - startX - 1) > (numCoords - 2)){
+                if((endX - startX - 1) > (numCoords - 2)){ // -2 because every ship has a minimum of 2 parts
                     std::cout << "Ship #" << id << "coordinates are too far apart\n";
                     continue;
                 } 
@@ -223,24 +218,35 @@ struct Ship {
     }
 
 
-    void placeAiShip(std::array<std::array<int, 8>, 8> &aiBoard, int aiNumCoords){
+    void placeAiShip(std::vector<std::vector<int>> &aiBoard, int aiNumCoords){
         bool isValid = false;
         while(!isValid){
             std::vector<std::pair<int, int>> coordinates;
             int direction = rand() % 2; // 0 = horizontal, 1 = vertical
-            int xStart = rand() % 8;
-            int yStart = rand() % 8;
+            int xStart = rand() % boardSize;
+            int yStart = rand() % boardSize;
 
             for(int i = 0; i < aiNumCoords; i++){
                 int x = xStart + (direction == 0 ? i : 0);
                 int y = yStart + (direction == 1 ? i : 0);
 
-                if(x >= 8 || y >= 8){
+                if(x >= boardSize || y >= boardSize){
                     break; //out of bounds
                 }
+                
                 coordinates.emplace_back(x,y);
 
             }
+            /*
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0 
+            */
             //check overlap
             if(coordinates.size() == aiNumCoords){
                 bool overlap = false;
@@ -273,49 +279,54 @@ struct Ship {
 
 
 
-void renderBoard(std::array<std::array<int, 8>, 8> board) {
-    std::cout << "    A B C D E F G H\n";
-    for (int i = 0; i < 8; i++) {
-        std::cout << i + 1 << " |";
-        for (int j = 0; j < 8; j++) {
+void renderBoard(const std::vector<std::vector<int>>& board) {
+    std::cout << "     ";
+    for(int a = 0; a < boardSize; a++){
+        std::cout << char(65+a) << " ";
+    }
+    std::cout << "\n";
+    for (int i = 0; i < boardSize; i++) {
+        std::cout << i + 1;
+        if(i + 1 < 10){
+            std::cout << "  |";
+        }else{
+            std::cout << " |";
+        }
+        for (int j = 0; j < boardSize; j++) {
             if (board[i][j] == empty) {
-                std::cout << "🌊";  // Water
-            } else if (board[i][j] == 2){
-                std::cout << "2️⃣";  // Display the ship's ID
-            } else if (board[i][j] == 3){
-                std::cout << "3️⃣";  // Display the ship's ID
-            } else if (board[i][j] == 4){
-                std::cout << "4️⃣";  // Display the ship's ID
-            } else if (board[i][j] == 5){
-                std::cout << "5️⃣";  // Display the ship's ID
+                std::cout << " ~";  // Water
+            } else {
+                std::cout << " " << board[i][j];
             }
         }
         std::cout << "\n";
     }
 }
 
-void renderGame(std::array<std::array<int, 8>, 8> board, std::array<std::array<int, 8>, 8> aiBoard) {
+void renderGame(const std::vector<std::vector<int>>& board, const std::vector<std::vector<int>>& aiBoard) {
     std::cout << "-----PLAYER BOARD-----         -----AI BOARD-----     -----Sunk Ships-----\n";
-    std::cout << "    A B C D E F G H              A B C D E F G H\n";
+    std::cout << "     A B C D E F G H              A B C D E F G H\n";
+    for(int a = 0; a < boardSize; a++){
+        std::cout << char(65+a) << " ";
+    }
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < boardSize; i++) {
         // Render player board
-        std::cout << i + 1 << " |";
-        for (int j = 0; j < 8; j++) {
+        std::cout << i + 1;
+        if(i + 1 < 10){
+            std::cout << "  |";
+        }else{
+            std::cout << " |";
+        }
+        for (int j = 0; j < boardSize; j++) {
             if (board[i][j] == empty) {
-                std::cout << "🌊";  // Water
+                std::cout << " ~";  // Water
             } else if (board[i][j] == miss) {
-                std::cout << "❎";  // Miss
+                std::cout << " O";  // Miss
             } else if (board[i][j] == hit) {
-                std::cout << "💥";  // Hit
-            } else if (board[i][j] == 2){
-                std::cout << "2️⃣";  // Display the ship's ID
-            } else if (board[i][j] == 3){
-                std::cout << "3️⃣";  // Display the ship's ID
-            } else if (board[i][j] == 4){
-                std::cout << "4️⃣";  // Display the ship's ID
-            } else if (board[i][j] == 5){
-                std::cout << "5️⃣";  // Display the ship's ID
+                std::cout << " X";  // Hit
+            } else{
+                std::cout << " " << board[i][j];
             }
         }
 
@@ -324,13 +335,13 @@ void renderGame(std::array<std::array<int, 8>, 8> board, std::array<std::array<i
 
         // Render computer board
         std::cout << i + 1 << " |";
-        for (int j = 0; j < 8; j++) {
+        for (int j = 0; j < boardSize; j++) {
             if (aiBoard[i][j] == miss) {
-                std::cout << "❎";  // Miss
+                std::cout << " O";  // Miss
             } else if (aiBoard[i][j] == hit) {
-                std::cout << "💥";  // Hit
+                std::cout << " X";  // Hit
             } else{
-                std::cout << "🌊"; // Water
+                std::cout << " ~"; // Water
             }
         }
 
@@ -352,7 +363,7 @@ void renderGame(std::array<std::array<int, 8>, 8> board, std::array<std::array<i
 
 
 //Players turns
-auto playerTurn(std::array<std::array<int, 8>, 8> &aiBoard){
+auto playerTurn(std::vector<std::vector<int>> &aiBoard){
     system_clear();    
     renderGame(board, aiBoard);
     int shipHit = 0; //Default value;
@@ -379,7 +390,7 @@ auto playerTurn(std::array<std::array<int, 8>, 8> &aiBoard){
         int y = toupper(y_in) - 1;    // Adjust for 0-based indexing
 
         // Ensure coordinates are within bounds
-        if (x < 0 || x >= 8 || y < 0 || y >= 8) {
+        if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
             std::cout << "Coordinates out of bounds. Please try again.\n";
         continue;
         }
@@ -388,14 +399,7 @@ auto playerTurn(std::array<std::array<int, 8>, 8> &aiBoard){
             continue;
         } else if(aiBoard[y][x] != empty){
             isValid = true;
-            switch(aiBoard[y][x]){
-                case 2: shipHit = 2; break;
-                case 3: shipHit = 3; break;
-                case 4: shipHit = 4; break;
-                case 5: shipHit = 5; break;
-                default:
-                    std::cout << "Ai turn error\n";
-            }
+            shipHit = aiBoard[y][x];
             aiBoard[y][x] = hit; // hit
             system_clear();        
             renderGame(board, aiBoard);
@@ -418,7 +422,7 @@ auto playerTurn(std::array<std::array<int, 8>, 8> &aiBoard){
     return shipHit;
 }
 
-void aiTurn(std::array<std::array<int, 8>, 8> &board, AiTurn &a){
+void aiTurn(std::vector<std::vector<int>> &board, AiTurn &a){
     system_clear();
     renderGame(board, aiBoard);
     bool isValid = false;
@@ -454,7 +458,7 @@ void aiTurn(std::array<std::array<int, 8>, 8> &board, AiTurn &a){
                     int step_x = (a.secondLastX - a.lastX); // The direction back toward the start
 
                     // Keep walking as long as we are on a 'hit'
-                    while (temp_x >= 0 && temp_x < 8 && board[a.lastY][temp_x] == hit) {
+                    while (temp_x >= 0 && temp_x < boardSize && board[a.lastY][temp_x] == hit) {
                         temp_x += step_x;
                     }
                     x = temp_x;
@@ -477,7 +481,7 @@ void aiTurn(std::array<std::array<int, 8>, 8> &board, AiTurn &a){
                     int step_y = (a.secondLastY - a.lastY); // The direction back toward the start
 
                     // Keep walking as long as we are on a 'hit'
-                    while (temp_y >= 0 && temp_y < 8 && board[temp_y][a.lastX] == hit) {
+                    while (temp_y >= 0 && temp_y < boardSize && board[temp_y][a.lastX] == hit) {
                         temp_y += step_y;
                     }
                     y = temp_y;
@@ -497,7 +501,7 @@ void aiTurn(std::array<std::array<int, 8>, 8> &board, AiTurn &a){
         }
 
         // Ensure coordinates are within bounds
-        if (x < 0 || x >= 8 || y < 0 || y >= 8) {
+        if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
             continue;
         }
         if(board[y][x] == hit || board[y][x] == miss){
@@ -505,11 +509,11 @@ void aiTurn(std::array<std::array<int, 8>, 8> &board, AiTurn &a){
         }
         else if(board[y][x] != empty){
             if(a.lastHit){
-                if(x - a.lastX == 0){
+                if(x == a.lastX){
                     a.direction = 'y';
                     a.vec2 = {1, -1}; 
                      std::shuffle(a.vec2.begin(), a.vec2.end(), g);
-                } else if(y - a.lastY == 0){
+                } else if(y == a.lastY){
                     a.direction = 'x';
                     a.vec2 = {1, -1}; 
                     std::shuffle(a.vec2.begin(), a.vec2.end(), g);
@@ -543,7 +547,7 @@ void aiTurn(std::array<std::array<int, 8>, 8> &board, AiTurn &a){
     
     std::cout << (char)(x + 'A') << y + 1 << '\n'; // print coords chose by computer
     std::cout << out <<"\n";
-    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
 }
 
 
@@ -551,6 +555,34 @@ int main(int argc, char* argv[]) {
 
     bool devMode = false;
     bool randomMode = false;
+
+    bool isValid = false;
+    std::cout << "Board size(max=20, default=10): ";
+    while (!isValid) {
+        if (!(std::cin >> boardSize)) { 
+            if (std::cin.eof()) {
+                std::cout << "\nInput stream closed. Exiting.\n";
+                exit(0); 
+            }
+
+            std::cin.clear(); 
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::cout << "Error: Invalid input. Enter a number.\n";
+            continue; 
+        } 
+        else {
+            // Check if the number actually fits within your rules (e.g., between 2 and 20)
+            if (boardSize > 20 || boardSize < 2) {
+                std::cout << "Error: Enter a number between 2 and 20.\n";
+                // Leave isValid as false so the loop runs again
+            } else {
+                isValid = true; // Input is completely safe!
+            }
+        }
+    }
+    
+
 
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--dev") {
@@ -607,7 +639,7 @@ int main(int argc, char* argv[]) {
             s.placeAiShip(board, s.size);
         }
     }
-     else{
+    else{
         renderBoard(board);
         std::cout << "\n";
         for(int i = 0; i < playerShips.size();  i++){
@@ -654,7 +686,7 @@ int main(int argc, char* argv[]) {
 
             // Check if player has lost
             
-            std::this_thread::sleep_for(std::chrono::milliseconds(1500));  // Wait a bit before next turn
+            std::this_thread::sleep_for(std::chrono::milliseconds(timeout));  // Wait a bit before next turn
 
         }
         else if (turn == 0) {  // AI MOVE ######################
