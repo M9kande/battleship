@@ -12,4 +12,3 @@ static int miss = -2;
 static int hit = -1;
 
 static int boardSize = 26;
-static const int timeout = 1500;

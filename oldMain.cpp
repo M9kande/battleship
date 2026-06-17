@@ -40,6 +40,11 @@ Board board(boardSize, std::vector<int>(boardSize, empty));
 
 Board aiBoard(boardSize, std::vector<int>(boardSize, empty));
 
+
+// Ship definitions for player and AI
+std::vector<Ship> playerShips;
+std::vector<Ship> aiShips;
+
 void renderGame(const Board& board, const Board& aiBoard);
 void renderBoard(const Board& board);
 
@@ -291,6 +296,14 @@ struct Ship {
         }
         return false;
     }
+
+    void showSunkShip(Board &aiBoard){
+        std::cout << "\n" << this->id << " ship showed after being sunk\n";
+        for(auto& coord: coordinates){
+            std::cout << coord.first << " " << coord.second;
+            aiBoard[coord.second][coord.first] = this->id;
+        }
+    }
 };
 
 
@@ -377,17 +390,18 @@ void renderGame(const Board& board, const Board& aiBoard) {
                 std::cout << GREEN <<  " O" << RESET;  // Miss
             } else if (aiBoard[i][j] == hit) {
                 std::cout <<  RED << " X" << RESET;  // Hit
-            } 
+            } else if(aiBoard[i][j] == empty){
+                std::cout << BLUE <<  " ~" << RESET;  // Water
+            }
             else{
+                for(const auto& s: aiShips){
+
+                }
                 if(devMode){
-                    if (aiBoard[i][j] == empty) {
-                        std::cout << BLUE <<  " ~" << RESET;  // Water
-                    } else{
-                        std::cout << " " << board[i][j];
-                    }
+                    std::cout << " " << aiBoard[i][j];
+                }
+                else {
                     
-                } else{
-                    std::cout << BLUE <<  " ~" << RESET;  // Water
                 }
             }
         }
@@ -597,10 +611,9 @@ void aiTurn(Board &board, AiTurn &a){
     std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
 }
 
-
 int main(int argc, char* argv[]) {
 
-
+    system_clear();
     bool isValid = false;
     std::cout << "Board size(min=5, max=26): ";
     while (!isValid) {
@@ -647,9 +660,7 @@ int main(int argc, char* argv[]) {
 
     int turn = 1; // First turn is the player's
 
-    // Ship definitions for player and AI
-    std::vector<Ship> playerShips;
-    std::vector<Ship> aiShips;
+
     for(int size = 2; size <= (boardSize/2 + 1); size++){
         Ship newShip  = Ship(size,size);
         playerShips.emplace_back(newShip);
@@ -727,6 +738,7 @@ int main(int argc, char* argv[]) {
                     if (s.id == shipHit) {
                         if (s.hitCheck()) {
                             std::cout << "You sunk AI Ship " << s.id << "!\n";
+                            s.showSunkShip(aiBoard);
                             aiSunkCount++;
                             aiSunkShipsArray[shipHit-2] = shipHit;
                         }
