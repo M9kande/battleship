@@ -1,6 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <array>
 #include <string>
 #include <algorithm>
 #include <cstdlib>
@@ -12,6 +11,10 @@
 #include <random>
 #include <limits>
 
+const std::string BLUE = "\033[34m";
+const std::string RED = "\033[31m";
+const std::string GREEN = "\033[32m";
+const std::string RESET = "\033[0m";
 
 bool devMode = false;
 bool randomMode = false;
@@ -246,16 +249,6 @@ struct Ship {
                 coordinates.emplace_back(x,y);
 
             }
-            /*
-                0 0 2 2 0 0 0 0
-                0 1 0 0 0 0 0 0
-                0 1 0 0 0 0 2 0
-                0 1 0 0 0 0 2 0
-                0 0 0 2 0 0 0 0
-                0 0 0 2 1 0 1 0
-                0 0 0 0 1 0 1 0
-                0 0 0 0 1 0 1 0 
-            */
             //check overlap
             if(coordinates.size() == aiNumCoords){
                 bool overlap = false;
@@ -317,7 +310,7 @@ void renderBoard(const Board& board) {
         }
         for (int j = 0; j < boardSize; j++) {
             if (board[i][j] == empty) {
-                std::cout << " ~";  // Water
+                std::cout << BLUE << " ~" << RESET;  // Water
             } else {
                 std::cout << " " << board[i][j];
             }
@@ -359,11 +352,11 @@ void renderGame(const Board& board, const Board& aiBoard) {
         }
         for (int j = 0; j < boardSize; j++) {
             if (board[i][j] == empty) {
-                std::cout << " ~";  // Water
+                std::cout << BLUE << " ~" << RESET;  // Water
             } else if (board[i][j] == miss) {
-                std::cout << " O";  // Miss
+                std::cout << GREEN << " O" << RESET;  // Miss
             } else if (board[i][j] == hit) {
-                std::cout << " X";  // Hit
+                std::cout << RED <<  " X" << RESET;  // Hit
             } else{
                 if(board[i][j] >= 10){
                     std::cout << board[i][j];
@@ -381,20 +374,20 @@ void renderGame(const Board& board, const Board& aiBoard) {
         std::cout << i + 1 << " |";
         for (int j = 0; j < boardSize; j++) {
             if (aiBoard[i][j] == miss) {
-                std::cout << " O";  // Miss
+                std::cout << GREEN <<  " O" << RESET;  // Miss
             } else if (aiBoard[i][j] == hit) {
-                std::cout << " X";  // Hit
+                std::cout <<  RED << " X" << RESET;  // Hit
             } 
             else{
                 if(devMode){
                     if (aiBoard[i][j] == empty) {
-                        std::cout << " ~";  // Water
+                        std::cout << BLUE <<  " ~" << RESET;  // Water
                     } else{
                         std::cout << " " << board[i][j];
                     }
                     
                 } else{
-                    std::cout << " ~";  // Water
+                    std::cout << BLUE <<  " ~" << RESET;  // Water
                 }
             }
         }
