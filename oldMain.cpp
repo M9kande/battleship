@@ -11,14 +11,28 @@
 #include <random>
 #include <limits>
 
-#include "GameTypes.h"
+const std::string BLUE = "\033[34m";
+const std::string RED = "\033[31m";
+const std::string GREEN = "\033[32m";
+const std::string RESET = "\033[0m";
 
+bool devMode = false;
+bool randomMode = false;
 
+static int empty = -3;
+static int miss = -2;
+static int hit = -1;
+
+static int boardSize = 26;
+static const int timeout = 1500;
 
 static std::random_device rd;
 static std::mt19937 g(rd());
-static const int timeout = 1500;
 
+typedef std::vector<std::vector<int>> Board;
+typedef std::vector<std::pair<int, int>> Vec4;
+
+typedef std::vector<int> Vec2;
 
 
 // Initialize globally with 'empty' immediately
@@ -39,13 +53,245 @@ void system_clear() {
 
 
 
+struct AiTurn{
+    int shipHit = 0;
+    bool lastHit = false;
+    bool lastSunk = false;
+    
 
+    int lastX = -1;
+    int lastY = -1;
+    int secondLastX = -1;
+    int secondLastY = -1;
+    
+    char direction = '0';
+    Vec2 vec2; 
+    Vec4 vec4;
+
+    std::vector<std::pair<int, int>> huntMoves;
+
+    void reset(){
+        direction = '0';
+        vec2.clear();
+        vec4.clear();
+        shipHit = 0;
+        lastHit = false;
+        lastSunk = false;
+        lastX = -1; lastY = -1;
+        secondLastX = -1; secondLastY = -1;
+    }
+
+    void initializeHuntMoves() {
+    huntMoves.clear();
+    for (int y = 0; y < boardSize; y++) {
+        for (int x = 0; x < boardSize; x++) {
+            // Parentheses are vital here!
+            if ((x + y) % 2 == 0) {
+                huntMoves.push_back({x, y});
+            }
+        }
+    }
+    // Shuffle once using the Mersenne Twister
+    // Note: ensure 'g' (your random engine) is defined globally or passed in
+    std::shuffle(huntMoves.begin(), huntMoves.end(), g);
+}
+};
 
 AiTurn ai;
 
 std::vector<int> aiSunkShipsArray(boardSize/2-1, 0);
 
+struct Ship {
+    int id = 0;
+    int size = 0;
+    std::vector<std::pair<int, int>> coordinates; // Store coordinates as pairs of (x, y)
+    bool isSunk = false;
+    
 
+    Ship(int id, int size){
+        this->id = id;
+        this->size = size;
+    }
+    
+    // General function to handle placing ships
+    void placeShip(Board &board, int numCoords) {
+        bool isValid = false;
+        static std::string Position[] = {"starting", "ending"};
+        while (!isValid) {
+            coordinates.clear();
+
+            // Input start and end coordinates
+            while(coordinates.size() < 2) {
+                char x_in;
+                int y_in;
+                
+                std::cout << "Input " << Position[coordinates.size()] << " coordinate for ship #" << id << " using a letter and a number: ";
+                if (!(std::cin >> x_in >> y_in)) { 
+                    if (std::cin.eof()) {
+                        std::cout << "\nInput stream closed. Exiting.\n";
+                        exit(0); // Stop the program safely
+                    }
+
+                    std::cin.clear(); 
+                    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+                    std::cout << "Error: Enter a Letter and a Number.\n";
+                    continue; 
+                }
+
+                x_in = toupper(x_in) - 'A';  // Convert letter to integer index
+                y_in = y_in - 1;    // Adjust for 0-based indexing
+
+                if (x_in < 0 || x_in >= boardSize || y_in < 0 || y_in >= boardSize) {
+                    std::cout << "Coordinates out of bounds. Please try again.\n";
+                    x_in = -1;
+                    y_in = -1;
+                    continue;
+                }
+
+                coordinates.emplace_back(x_in, y_in);
+            }
+
+            // Sort coordinates to handle reverse input gracefully
+            sort(coordinates.begin(), coordinates.end());
+
+            int startX = coordinates[0].first;
+            int startY = coordinates[0].second;
+            int endX = coordinates[1].first;
+            int endY = coordinates[1].second;
+
+            bool isHorizontal = (startY == endY);
+            bool isVertical = (startX == endX);
+
+            if (!(isHorizontal || isVertical)) {
+                std::cout << "Ship coordinates must be in a straight line (horizontal or vertical). Try again.\n";
+                continue;
+            }
+
+            if(isHorizontal){
+                if((endX - startX - 1) > (numCoords - 2)){ // -2 because every ship has a minimum of 2 parts
+                    std::cout << "Ship #" << id << "coordinates are too far apart\n";
+                    continue;
+                } 
+                else if((endX - startX - 1) < (numCoords - 2)){
+                    std::cout << "Ship #" << id << " coordinates are too close to each other\n";
+                    continue;
+                }
+            } 
+            else if(isVertical){
+                if((endY - startY - 1) > (numCoords - 2)){
+                    std::cout << "Ship #" << id << " coordinates are too far apart\n";
+                    continue;
+                } 
+                else if((endY - startY - 1) < (numCoords - 2)){
+                    std::cout << "Ship #" << id << " coordinates are too close to each other\n";
+                    continue;
+                }
+            }
+
+            // Generate full ship coordinates
+            coordinates.clear();
+            if (isHorizontal) {
+                for (int x = startX; x <= endX; ++x) {
+                    coordinates.emplace_back(x, startY);
+                }
+            } 
+            else if (isVertical) {
+                for (int y = startY; y <= endY; ++y) {
+                    coordinates.emplace_back(startX, y);
+                }
+            }
+
+            // Check for overlap
+            bool overlap = false;
+            for (const auto& coord : coordinates) {
+                int x = coord.first;
+                int y = coord.second;
+                if (board[y][x] != empty) {
+                    std::cout << "Space already occupied. Try again.\n";
+                    overlap = true;
+                    break;
+                }
+            }
+
+            if (!overlap) {
+                for (const auto& coord : coordinates) {
+                    int x = coord.first;
+                    int y = coord.second;
+                    board[y][x] = id;  // Place the ship on the board
+                }
+                isValid = true;
+                std::cout << "Ship #" << id << " placed successfully.\n";
+                system_clear();
+                renderBoard(board);
+                std::cout << "\n";
+            }
+        }
+    }
+
+
+    void placeAiShip(Board &aiBoard, int aiNumCoords){
+        bool isValid = false;
+        while(!isValid){
+            std::vector<std::pair<int, int>> coordinates;
+            int direction = rand() % 2; // 0 = horizontal, 1 = vertical
+            int xStart = rand() % boardSize;
+            int yStart = rand() % boardSize;
+
+            for(int i = 0; i < aiNumCoords; i++){
+                int x = xStart + (direction == 0 ? i : 0);
+                int y = yStart + (direction == 1 ? i : 0);
+
+                if(x >= boardSize || y >= boardSize){
+                    break; //out of bounds
+                }
+                
+                coordinates.emplace_back(x,y);
+
+            }
+            //check overlap
+            if(coordinates.size() == aiNumCoords){
+                bool overlap = false;
+                for(auto &coord: coordinates){
+                    for(int j = -1; j <= 1; j++){
+                        if(aiBoard[std::clamp(coord.second + j, 0, boardSize-1)][coord.first] != empty){
+                            overlap = true;
+                            break;
+                        }
+                        if(aiBoard[coord.second][std::clamp(coord.first + j, 0, boardSize-1)] != empty){
+                            overlap = true;
+                            break;
+                        }
+                        if(aiBoard[std::clamp(coord.second + 1, 0, boardSize-1)][std::clamp(coord.first + j, 0, boardSize-1)] != empty){
+                            overlap = true;
+                            break;
+                        }
+                        if(aiBoard[std::clamp(coord.second - 1, 0, boardSize-1)][std::clamp(coord.first + j, 0, boardSize-1)] != empty){
+                            overlap = true;
+                            break;
+                        }
+                    }
+                }
+                if(!overlap){
+                    for(auto &coord: coordinates){
+                        aiBoard[coord.second][coord.first] = id;
+
+                    }
+                    isValid = true;
+                }
+            }
+        }
+    }
+
+    bool hitCheck() {
+        size--;
+        if (size <= 0) {
+            isSunk = true;
+            return true;
+        }
+        return false;
+    }
+};
 
 
 
